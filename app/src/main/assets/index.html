@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+<title>공포 & 탐욕 지수</title>
+<style>
+:root{--purple:#6e3bc2;--green:#86bf46;--green2:#379243;--red:#e12f2e;--orange:#ff9812;--yellow:#ffc53a;--blue:#2a67b6;--text:#15161a;--muted:#9a9a9f;--bg:#f6f6f7;--card:#fff}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;min-height:100%;background:var(--bg);font-family:-apple-system,BlinkMacSystemFont,"Noto Sans KR","Segoe UI",sans-serif;color:var(--text)}
+button,input{font:inherit}
+header{position:sticky;top:0;z-index:8;background:#fff;border-bottom:1px solid #d9d9dc}
+.top{height:78px;display:flex;align-items:center;justify-content:space-between;padding:0 24px}
+.title{font-size:31px;font-weight:400;letter-spacing:-1.9px;white-space:nowrap}
+.actions{display:flex;align-items:center;gap:10px}.icon{border:0;background:transparent;width:42px;height:42px;border-radius:50%;display:grid;place-items:center;font-size:28px;color:#38393d;padding:0}.icon.small{font-size:24px}.hidden{display:none!important}
+.tabs{height:58px;display:grid;grid-template-columns:repeat(3,1fr);position:relative}.tab{position:relative;border:0;background:#fff;font-size:18px;font-weight:800;color:#9a9a9e}.tab.active{color:#151515}.tab.active:after{content:"";position:absolute;left:50%;bottom:0;transform:translateX(-50%);width:42px;height:5px;border-radius:4px 4px 0 0;background:var(--purple)}
+main{max-width:760px;margin:auto;padding:34px 28px 54px}.panel{display:none}.panel.active{display:block}
+.card{background:#fff;border-radius:32px;box-shadow:0 8px 26px rgba(0,0,0,.06);padding:24px;margin-bottom:28px}
+.gauge-card{padding:30px 28px 34px;text-align:center}.gauge-wrap{max-width:470px;margin:6px auto -4px}.gauge{width:100%;height:auto;display:block}.score{font-size:66px;line-height:1;font-weight:700;letter-spacing:-2px;margin-top:8px}.sentiment{font-size:21px;font-weight:900;color:var(--green);margin-top:20px}.daily-line{margin-top:15px;font-size:17px;font-weight:800}.daily-line .date{color:#a2a2a8;font-weight:700;margin-right:10px}.up{color:#d64a4a}.down{color:#2c69b5}.flat{color:#777}
+.alert{margin:20px auto 0;max-width:440px;padding:11px 14px;border-radius:13px;background:#fff1e8;color:#f17215;font-size:15px;font-weight:900;text-align:center}.alert:empty{display:none}
+.section-title{font-size:26px;font-weight:900;letter-spacing:-1px;margin:0 0 16px}.history-row{display:flex;align-items:center;justify-content:space-between;padding:19px 0;border-bottom:1px solid #dddddf;font-size:19px}.history-row:last-child{border:0}.history-val{display:flex;align-items:center;gap:12px}.history-val b{font-size:21px}.tag{font-size:14px;font-weight:900;padding:7px 11px;border-radius:12px}.tag.greed{background:#eff8e8;color:#78ad3e}.tag.neutral{background:#fff8dd;color:#d4a41d}.tag.fear{background:#fff0dc;color:#de981c}
+.week-card{padding-bottom:20px}.chart-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}.chart-title{font-weight:900;font-size:22px}.pill{font-size:13px;background:#eef6e9;color:#55972f;font-weight:900;border-radius:999px;padding:7px 10px}.week-card canvas{display:block;width:100%;height:150px}
+.date-card{padding-bottom:22px}.date-box{display:flex;gap:10px;align-items:center}.date-box input{min-width:0;flex:1;border:1px solid #dedee2;background:#fff;border-radius:13px;padding:13px 12px;font-size:16px;color:#202125}.primary{border:0;border-radius:13px;background:var(--purple);color:#fff;font-weight:900;padding:13px 17px}.date-result{margin-top:15px}.date-help{font-size:13px;color:#898a91;line-height:1.55}.result-box{border:1px solid #ececf0;border-radius:18px;padding:15px 16px}.result-name{font-size:14px;color:#777;font-weight:800}.result-value{font-size:27px;font-weight:900;margin-top:7px}.result-change{font-size:17px;font-weight:900;margin-top:7px}
+.indices-header-note{font-size:13px;color:#777;line-height:1.6;margin:-8px 4px 18px}.ind-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.index-card{position:relative;background:#fff;border-radius:24px;box-shadow:0 7px 22px rgba(0,0,0,.055);padding:20px}.index-name{font-size:19px;font-weight:900}.index-date{float:right;color:#999;font-size:12px;font-weight:700}.index-value{font-size:34px;font-weight:900;letter-spacing:-1px;margin-top:26px}.index-change{font-size:16px;font-weight:900;margin-top:8px}.index-alert{font-size:13px;color:#f17316;font-weight:900;margin-top:11px}.wide{grid-column:1/-1}.wide .index-value{font-size:42px}.spark{width:100%;height:82px;margin-top:14px}.subgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}.mini-card{background:#fff;border-radius:24px;box-shadow:0 7px 22px rgba(0,0,0,.05);padding:20px;min-height:166px}.mini-title{font-size:19px;font-weight:900}.mini-sub{float:right;color:#8f9096;font-size:12px;font-weight:800}.mini-big{font-size:30px;font-weight:900;margin-top:34px}.mini-note{font-size:13px;color:#888;line-height:1.45;margin-top:8px}
+.compare{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:15px}.info-card{font-size:13px;color:#777;line-height:1.65}.info-card b{color:#222}
+.loading{position:fixed;right:18px;bottom:22px;background:#1b1c20;color:#fff;border-radius:999px;padding:11px 15px;font-size:13px;font-weight:800;box-shadow:0 8px 24px rgba(0,0,0,.2);display:none;z-index:20}.loading.show{display:block}
+@media(max-width:460px){.top{height:72px;padding:0 18px}.title{font-size:27px}.tabs{height:54px}.tab{font-size:17px}main{padding:32px 32px 50px}.card{border-radius:29px}.gauge-card{padding:26px 17px 32px}.score{font-size:62px}.ind-grid,.subgrid{gap:11px}.index-card,.mini-card{padding:16px}.index-value{font-size:30px}.wide .index-value{font-size:38px}.compare{grid-template-columns:1fr}.section-title{font-size:24px}}
+@media(max-width:365px){main{padding-left:18px;padding-right:18px}.title{font-size:24px}.index-value{font-size:27px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="top">
+    <div id="page-title" class="title">공포 &amp; 탐욕 지수</div>
+    <div class="actions">
+      <button id="layout-btn" class="icon small hidden" aria-label="레이아웃">▤</button>
+      <button id="refresh-btn" class="icon hidden" aria-label="새로고침" onclick="refresh()">↻</button>
+      <button id="info-btn" class="icon" aria-label="정보" onclick="showInfo()">ⓘ</button>
+    </div>
+  </div>
+  <div class="tabs"><button class="tab active" data-tab="nasdaq">나스닥</button><button class="tab" data-tab="kospi">코스피</button><button class="tab" data-tab="indices">지표</button></div>
+</header>
+<main>
+  <section id="nasdaq" class="panel active"></section>
+  <section id="kospi" class="panel"></section>
+  <section id="indices" class="panel"></section>
+</main>
+<div id="loading" class="loading">데이터 갱신 중…</div>
+<script>
+const fallback={
+ nasdaq:{name:'나스닥',date:'2026-08-07',value:24839.37,change:396.42,changePct:1.62,score:63.7,prevDayScore:59.7,weekAgoScore:45.2,monthAgoScore:39.8,yearAgoScore:54.7,sentiment:'탐욕',alert:'',weekly:[{date:'6/5',value:22500},{date:'6/12',value:22920},{date:'6/19',value:23140},{date:'6/26',value:22800},{date:'7/3',value:23360},{date:'7/10',value:23610},{date:'7/17',value:23980},{date:'7/24',value:24400},{date:'7/31',value:24230},{date:'8/7',value:24839}]},
+ kospi:{name:'코스피',date:'2026-08-07',value:6258.77,change:-37.61,changePct:-0.60,score:68.0,prevDayScore:64.0,weekAgoScore:49.0,monthAgoScore:33.0,yearAgoScore:55.0,sentiment:'탐욕',alert:'',weekly:[{date:'6/5',value:5650},{date:'6/12',value:5780},{date:'6/19',value:5890},{date:'6/26',value:5820},{date:'7/3',value:5980},{date:'7/10',value:6110},{date:'7/17',value:6170},{date:'7/24',value:6220},{date:'7/31',value:6300},{date:'8/7',value:6258}]},
+ kosdaq:{name:'코스닥',date:'2026-08-07',value:798.81,change:-2.86,changePct:-0.36,score:54,prevDayScore:53,weekAgoScore:51,monthAgoScore:47,yearAgoScore:50,sentiment:'중립',alert:'',weekly:[{date:'6/5',value:760},{date:'6/12',value:772},{date:'6/19',value:781},{date:'6/26',value:779},{date:'7/3',value:789},{date:'7/10',value:802},{date:'7/17',value:806},{date:'7/24',value:801},{date:'7/31',value:804},{date:'8/7',value:799}]}
+};
+let data=JSON.parse(JSON.stringify(fallback));
+const fmt=n=>Number(n).toLocaleString('ko-KR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const changeClass=v=>v>0?'up':v<0?'down':'flat';
+const pctText=v=>(v>0?'▲ +':v<0?'▼ ':'')+Math.abs(v).toFixed(2)+'%';
+function tagClass(s){return s.includes('공포')?'fear':s==='중립'?'neutral':'greed'}
+function labelFrom(v){return v<20?'극도의 공포':v<40?'공포':v<60?'중립':v<80?'탐욕':'극도의 탐욕'}
+function gaugeSvg(score){
+  let angle=-180+(Math.max(0,Math.min(100,score))*1.8),r=105,cx=160,cy=126;
+  let x=cx+Math.cos(angle*Math.PI/180)*r,y=cy+Math.sin(angle*Math.PI/180)*r;
+  return `<svg class="gauge" viewBox="0 0 320 188" aria-label="공포 탐욕 게이지">
+  <path d="M45 126 A115 115 0 0 1 275 126" fill="none" stroke="#ececee" stroke-width="49"/>
+  <path d="M45 126 A115 115 0 0 1 78 47" fill="none" stroke="#df2d2c" stroke-width="47"/>
+  <path d="M78 47 A115 115 0 0 1 129 15" fill="none" stroke="#ff980f" stroke-width="47"/>
+  <path d="M129 15 A115 115 0 0 1 191 15" fill="none" stroke="#ffc83d" stroke-width="47"/>
+  <path d="M191 15 A115 115 0 0 1 242 47" fill="none" stroke="#8cc34a" stroke-width="47"/>
+  <path d="M242 47 A115 115 0 0 1 275 126" fill="none" stroke="#3a9445" stroke-width="47"/>
+  <line x1="160" y1="126" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="#18191c" stroke-width="10" stroke-linecap="round"/>
+  <circle cx="160" cy="126" r="18" fill="#17181b"/>
+  <g font-size="14" font-weight="700" fill="#202124"><text x="22" y="132">0</text><text x="62" y="51">20</text><text x="123" y="13">40</text><text x="185" y="13">60</text><text x="250" y="51">80</text></g></svg>`
+}
+function marketPanel(key){let m=data[key];return `
+<div class="card gauge-card">
+ <div class="gauge-wrap">${gaugeSvg(m.score)}</div>
+ <div class="score">${Number(m.score).toFixed(1)}</div>
+ <div class="sentiment">${m.sentiment}</div>
+ <div class="daily-line ${changeClass(m.changePct)}"><span class="date">${m.date}</span>${pctText(m.changePct)}</div>
+ ${m.alert?`<div class="alert">⚠ ${m.alert}</div>`:''}
+</div>
+<div class="card"><h2 class="section-title">이전 지수</h2>${historyRows(m)}</div>
+<div class="card week-card"><div class="chart-head"><div class="chart-title">주봉 추이</div><div class="pill">최근 10주</div></div><canvas id="chart-${key}" width="680" height="220"></canvas></div>
+<div class="card date-card"><h2 class="section-title">날짜별 등락률</h2><div class="date-box"><input id="date-${key}" type="date" value="${m.date}"><button class="primary" onclick="lookupDate('${key}')">조회</button></div><div id="date-result-${key}" class="date-result"><div class="date-help">선택한 날짜의 종가가 바로 전 거래일보다 몇 % 상승·하락했는지 보여줍니다. 휴장일을 고르면 그 날짜 이전의 가장 최근 거래일을 사용합니다.</div></div></div>`}
+function historyRows(m){return [['지난 거래일',m.prevDayScore],['일주일 전',m.weekAgoScore],['한 달 전',m.monthAgoScore],['1년 전',m.yearAgoScore]].map(([n,v])=>{v=Math.max(0,Math.min(100,Number(v??m.score)));let s=labelFrom(v);return `<div class="history-row"><span>${n}</span><span class="history-val"><b>${v.toFixed(1)}</b><span class="tag ${tagClass(s)}">${s}</span></span></div>`}).join('')}
+function indexCard(m,wide=false){return `<div class="index-card ${wide?'wide':''}"><div><span class="index-name">${m.name==='코스피'?'KOSPI':m.name==='코스닥'?'KOSDAQ':'NASDAQ'}</span><span class="index-date">${m.date}</span></div><div class="index-value">${fmt(m.value)}</div><div class="index-change ${changeClass(m.changePct)}">${m.change>0?'+':''}${fmt(m.change)} &nbsp; ${m.changePct>0?'+':''}${Number(m.changePct).toFixed(2)}%</div>${m.alert?`<div class="index-alert">⚠ ${m.alert}</div>`:''}<canvas class="spark" id="spark-${m.name}" width="600" height="120"></canvas></div>`}
+function render(){
+ document.getElementById('nasdaq').innerHTML=marketPanel('nasdaq');
+ document.getElementById('kospi').innerHTML=marketPanel('kospi');
+ document.getElementById('indices').innerHTML=`<div class="indices-header-note">최신 거래일 종가와 전 거래일 대비 등락률입니다. 사이드카·서킷브레이커는 발동이 확인될 때만 KOSPI 아래에 나타납니다.</div><div class="ind-grid">${indexCard(data.kospi)}${indexCard(data.kosdaq)}${indexCard(data.nasdaq,true)}</div><div class="subgrid"><div class="mini-card"><span class="mini-title">주봉</span><span class="mini-sub">KOSPI</span><div class="mini-big ${changeClass(weeklyPct(data.kospi))}">${signedPct(weeklyPct(data.kospi))}</div><div class="mini-note">최근 주봉 종가 기준 직전 주 대비</div></div><div class="mini-card"><span class="mini-title">주봉</span><span class="mini-sub">NASDAQ</span><div class="mini-big ${changeClass(weeklyPct(data.nasdaq))}">${signedPct(weeklyPct(data.nasdaq))}</div><div class="mini-note">최근 주봉 종가 기준 직전 주 대비</div></div></div><div class="card date-card" style="margin-top:28px"><h2 class="section-title">날짜 비교</h2><div class="date-box"><input id="compare-date" type="date" value="${data.kospi.date}"><button class="primary" onclick="lookupCompare()">조회</button></div><div id="compare-result" class="compare"><div class="date-help" style="grid-column:1/-1">같은 날짜 기준으로 코스피와 나스닥이 각각 몇 % 움직였는지 비교합니다.</div></div></div><div class="card info-card"><b>공포 &amp; 탐욕 지수 안내</b><br>화면 디자인은 제공된 레퍼런스를 바탕으로 구성했습니다. 공포·탐욕 수치는 공식 거래소 지수가 아니라 가격 흐름, RSI, 이동평균, 모멘텀을 조합한 앱 자체 추정치입니다.</div>`;
+ setTimeout(drawAll,30)
+}
+function weeklyPct(m){if(!m.weekly||m.weekly.length<2)return 0;let a=m.weekly[m.weekly.length-2].value,b=m.weekly[m.weekly.length-1].value;return a?((b-a)/a*100):0}
+function signedPct(v){return (v>0?'+':'')+Number(v).toFixed(2)+'%'}
+function drawLine(canvas,pts,color){if(!canvas||!pts||pts.length<2)return;let ctx=canvas.getContext('2d'),w=canvas.width,h=canvas.height,pad=18,vals=pts.map(x=>Number(x.value)),min=Math.min(...vals),max=Math.max(...vals);if(max<=min)max=min+1;ctx.clearRect(0,0,w,h);ctx.strokeStyle='#ededf0';ctx.lineWidth=1;for(let i=1;i<4;i++){let y=pad+(h-2*pad)*i/4;ctx.beginPath();ctx.moveTo(pad,y);ctx.lineTo(w-pad,y);ctx.stroke()}ctx.strokeStyle=color||'#3e9b48';ctx.lineWidth=5;ctx.lineJoin='round';ctx.lineCap='round';ctx.beginPath();pts.forEach((p,i)=>{let x=pad+(w-2*pad)*i/(pts.length-1),y=h-pad-(Number(p.value)-min)/(max-min)*(h-2*pad);i?ctx.lineTo(x,y):ctx.moveTo(x,y)});ctx.stroke();let last=pts[pts.length-1],x=w-pad,y=h-pad-(Number(last.value)-min)/(max-min)*(h-2*pad);ctx.fillStyle=color||'#3e9b48';ctx.beginPath();ctx.arc(x,y,6,0,Math.PI*2);ctx.fill()}
+function drawAll(){drawLine(document.getElementById('chart-nasdaq'),data.nasdaq.weekly,'#469b49');drawLine(document.getElementById('chart-kospi'),data.kospi.weekly,'#469b49');['kospi','kosdaq','nasdaq'].forEach(k=>drawLine(document.getElementById('spark-'+data[k].name),data[k].weekly,data[k].changePct>=0?'#d44848':'#2d68b5'))}
+function lookupDate(key){let d=document.getElementById('date-'+key).value;if(!d)return;window._dateKey=key;showLoading(true);if(window.MarketNative)MarketNative.requestDate(d);else setTimeout(()=>{let m=data[key];displayDateResult(key,{name:m.name,tradingDate:d,value:m.value,changePct:m.changePct});showLoading(false)},300)}
+function displayDateResult(key,m){document.getElementById('date-result-'+key).innerHTML=`<div class="result-box"><div class="result-name">${m.name} · ${m.tradingDate||m.date}</div><div class="result-value">${fmt(m.value)}</div><div class="result-change ${changeClass(m.changePct)}">${pctText(m.changePct)}</div></div>`}
+function lookupCompare(){let d=document.getElementById('compare-date').value;if(!d)return;window._dateKey='compare';showLoading(true);if(window.MarketNative)MarketNative.requestDate(d);else setTimeout(()=>onDateData(JSON.stringify({ok:true,kospi:data.kospi,nasdaq:data.nasdaq})),300)}
+function compareCard(m){return `<div class="result-box"><div class="result-name">${m.name} · ${m.tradingDate||m.date}</div><div class="result-value">${fmt(m.value)}</div><div class="result-change ${changeClass(m.changePct)}">${pctText(m.changePct)}</div></div>`}
+window.onDateData=function(raw){showLoading(false);let o=typeof raw==='string'?JSON.parse(raw):raw;if(!o.ok){alert(o.error||'조회 실패');return}if(window._dateKey==='compare')document.getElementById('compare-result').innerHTML=compareCard(o.kospi)+compareCard(o.nasdaq);else displayDateResult(window._dateKey,o[window._dateKey])}
+window.onMarketData=function(raw){try{data=JSON.parse(raw);render();showLoading(false)}catch(e){console.log(e)}}
+function refresh(){showLoading(true);if(window.MarketNative)MarketNative.refresh();else setTimeout(()=>showLoading(false),600)}
+function showInfo(){alert('공포 & 탐욕 수치는 앱 자체 추정 심리지수입니다. 코스피·나스닥 등락률은 전 거래일 종가 대비로 계산합니다. 사이드카·서킷브레이커는 발동이 확인된 경우에만 표시합니다.')}
+function showLoading(v){document.getElementById('loading').classList.toggle('show',!!v)}
+function updateHeader(tab){let idx=tab==='indices';document.getElementById('page-title').textContent=idx?'시장 지표':'공포 & 탐욕 지수';document.getElementById('info-btn').classList.toggle('hidden',idx);document.getElementById('refresh-btn').classList.toggle('hidden',!idx);document.getElementById('layout-btn').classList.toggle('hidden',!idx)}
+document.querySelectorAll('.tab').forEach(btn=>btn.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'));btn.classList.add('active');document.getElementById(btn.dataset.tab).classList.add('active');updateHeader(btn.dataset.tab);setTimeout(drawAll,25)});
+render();showLoading(true);setTimeout(()=>{if(window.MarketNative)MarketNative.requestDashboard();else showLoading(false)},300);
+</script>
+</body></html>
