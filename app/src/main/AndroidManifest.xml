@@ -17,37 +17,40 @@
             </intent-filter>
         </activity>
 
+        <!-- 1x1 / 2x1 fixed variants. No configuration screen. -->
         <receiver android:name=".FixedWidgetProviders$KospiMoodSmall" android:label="코스피 탐욕 1×1" android:exported="true">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/><action android:name="com.marketmood.widget.REFRESH"/></intent-filter>
-            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_small_info"/>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/mood_small_info"/>
         </receiver>
         <receiver android:name=".FixedWidgetProviders$KospiMoodWide" android:label="코스피 탐욕 2×1" android:exported="true">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/><action android:name="com.marketmood.widget.REFRESH"/></intent-filter>
-            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_wide_info"/>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/mood_wide_info"/>
         </receiver>
         <receiver android:name=".FixedWidgetProviders$NasdaqMoodSmall" android:label="나스닥 탐욕 1×1" android:exported="true">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/><action android:name="com.marketmood.widget.REFRESH"/></intent-filter>
-            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_small_info"/>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/mood_small_info"/>
         </receiver>
         <receiver android:name=".FixedWidgetProviders$NasdaqMoodWide" android:label="나스닥 탐욕 2×1" android:exported="true">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/><action android:name="com.marketmood.widget.REFRESH"/></intent-filter>
-            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_wide_info"/>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/mood_wide_info"/>
         </receiver>
         <receiver android:name=".FixedWidgetProviders$KospiChangeSmall" android:label="코스피 등락 1×1" android:exported="true">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/><action android:name="com.marketmood.widget.REFRESH"/></intent-filter>
-            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_small_info"/>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/change_small_info"/>
         </receiver>
         <receiver android:name=".FixedWidgetProviders$KospiChangeWide" android:label="코스피 등락 2×1" android:exported="true">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/><action android:name="com.marketmood.widget.REFRESH"/></intent-filter>
-            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_wide_info"/>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/change_wide_info"/>
         </receiver>
         <receiver android:name=".FixedWidgetProviders$NasdaqChangeSmall" android:label="나스닥 등락 1×1" android:exported="true">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/><action android:name="com.marketmood.widget.REFRESH"/></intent-filter>
-            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_small_info"/>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/change_small_info"/>
         </receiver>
         <receiver android:name=".FixedWidgetProviders$NasdaqChangeWide" android:label="나스닥 등락 2×1" android:exported="true">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/><action android:name="com.marketmood.widget.REFRESH"/></intent-filter>
-            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_wide_info"/>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/change_wide_info"/>
         </receiver>
+
+        <!-- Hidden legacy v1.1 receiver is intentionally not registered anymore. -->
     </application>
 </manifest>

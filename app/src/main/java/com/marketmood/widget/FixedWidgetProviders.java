@@ -10,10 +10,7 @@ import android.content.res.Configuration;
 import android.os.Bundle;
 import android.widget.RemoteViews;
 
-/**
- * Fixed widget variants exposed directly in Samsung/Android widget picker.
- * No configuration screen is used: each picker item already has a fixed market/content/size.
- */
+/** Fixed widget variants exposed directly in Samsung/Android widget picker. */
 public final class FixedWidgetProviders {
     private FixedWidgetProviders() {}
 
@@ -21,6 +18,8 @@ public final class FixedWidgetProviders {
         protected abstract String symbol();
         protected abstract String marketName();
         protected abstract boolean changeMode();
+        /** Layout identity is fixed by provider so resizing never swaps to another design. */
+        protected boolean wideVariant(){ return false; }
 
         @Override public void onUpdate(Context context, AppWidgetManager manager, int[] ids) {
             if (ids != null) for (int id : ids) updateOne(context, manager, id);
@@ -41,17 +40,21 @@ public final class FixedWidgetProviders {
         public void updateOne(Context context, AppWidgetManager manager, int id) {
             MarketSnapshot snapshot = MarketRepository.load(context, symbol(), marketName());
             Bundle options = manager.getAppWidgetOptions(id);
-            int dpW = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH, 260);
-            int dpH = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 120);
+            int fallbackW = wideVariant() ? 180 : 86;
+            int fallbackH = 86;
+            int dpW = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, fallbackW);
+            int dpH = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, fallbackH);
+            if (dpW <= 0) dpW = fallbackW;
+            if (dpH <= 0) dpH = fallbackH;
             float density = context.getResources().getDisplayMetrics().density;
-            int width = Math.max(160, Math.round(dpW * density));
-            int height = Math.max(120, Math.round(dpH * density));
+            int width = Math.max(Math.round(48*density), Math.round(dpW * density));
+            int height = Math.max(Math.round(48*density), Math.round(dpH * density));
             boolean dark = (context.getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK)
                     == Configuration.UI_MODE_NIGHT_YES;
 
             RemoteViews rv = new RemoteViews(context.getPackageName(), R.layout.widget_market);
             rv.setImageViewBitmap(R.id.widget_image,
-                    WidgetRenderer.render(snapshot, width, height, dark, changeMode()));
+                    WidgetRenderer.render(snapshot, width, height, density, dark, changeMode(), wideVariant()));
 
             Intent open = new Intent(context, MainActivity.class);
             PendingIntent pi = PendingIntent.getActivity(context, id, open,
@@ -66,25 +69,28 @@ public final class FixedWidgetProviders {
         protected String marketName(){ return "코스피"; }
         protected boolean changeMode(){ return false; }
     }
-    public static class KospiMoodWide extends KospiMoodSmall {}
+    public static class KospiMoodWide extends KospiMoodSmall { @Override protected boolean wideVariant(){ return true; } }
+
     public static class NasdaqMoodSmall extends Base {
         protected String symbol(){ return "^IXIC"; }
         protected String marketName(){ return "나스닥"; }
         protected boolean changeMode(){ return false; }
     }
-    public static class NasdaqMoodWide extends NasdaqMoodSmall {}
+    public static class NasdaqMoodWide extends NasdaqMoodSmall { @Override protected boolean wideVariant(){ return true; } }
+
     public static class KospiChangeSmall extends Base {
         protected String symbol(){ return "^KS11"; }
         protected String marketName(){ return "코스피"; }
         protected boolean changeMode(){ return true; }
     }
-    public static class KospiChangeWide extends KospiChangeSmall {}
+    public static class KospiChangeWide extends KospiChangeSmall { @Override protected boolean wideVariant(){ return true; } }
+
     public static class NasdaqChangeSmall extends Base {
         protected String symbol(){ return "^IXIC"; }
         protected String marketName(){ return "나스닥"; }
         protected boolean changeMode(){ return true; }
     }
-    public static class NasdaqChangeWide extends NasdaqChangeSmall {}
+    public static class NasdaqChangeWide extends NasdaqChangeSmall { @Override protected boolean wideVariant(){ return true; } }
 
     @SuppressWarnings("unchecked")
     private static final Class<? extends AppWidgetProvider>[] ALL = new Class[]{

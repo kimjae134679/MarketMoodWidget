@@ -7,6 +7,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.util.TypedValue;
 import android.widget.RemoteViews;
 
 public class MarketWidgetProvider extends AppWidgetProvider {
@@ -36,13 +37,13 @@ public class MarketWidgetProvider extends AppWidgetProvider {
         MarketSnapshot s=MarketRepository.load(context,symbol,name);
 
         Bundle o=manager.getAppWidgetOptions(id);
-        int dpW=o.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH,280);
-        int dpH=o.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT,150);
+        int dpW=o.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH,280);
+        int dpH=o.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT,150);
         float den=context.getResources().getDisplayMetrics().density;
         int w=Math.max(280,(int)(dpW*den)); int h=Math.max(160,(int)(dpH*den));
 
         RemoteViews rv=new RemoteViews(context.getPackageName(),R.layout.widget_market);
-        rv.setImageViewBitmap(R.id.widget_image,WidgetRenderer.render(s,w,h,dark,graph));
+        rv.setImageViewBitmap(R.id.widget_image,WidgetRenderer.render(s,w,h,den,dark,false,true));
         Intent open=new Intent(context,MainActivity.class);
         PendingIntent pi=PendingIntent.getActivity(context,id,open,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
         rv.setOnClickPendingIntent(R.id.widget_image,pi);
