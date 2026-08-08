@@ -30,8 +30,9 @@ public class MarketUpdater {
 
             try {
                 AppWidgetManager manager=AppWidgetManager.getInstance(app);
-                int[] ids=manager.getAppWidgetIds(new ComponentName(app,MarketWidgetProvider.class));
-                MarketWidgetProvider.updateWidgets(app, manager, ids);
+                FixedWidgetProviders.refreshAllWidgets(app, manager);
+                int[] legacy=manager.getAppWidgetIds(new ComponentName(app,MarketWidgetProvider.class));
+                MarketWidgetProvider.updateWidgets(app, manager, legacy);
             } catch (Exception ignored) {}
             if(done!=null) done.run();
         });
