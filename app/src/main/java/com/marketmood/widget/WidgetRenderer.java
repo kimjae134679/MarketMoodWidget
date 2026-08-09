@@ -10,14 +10,15 @@ import android.graphics.Typeface;
 import java.util.Locale;
 
 /**
- * Draws the home-screen widgets as one bitmap.
+ * Home-screen widget renderer.
  *
- * Design rules:
- *  - Keep 1x1 and 2x1 compositions stable when a launcher resizes them.
- *  - Keep all important text inside a generous rounded-corner safe area.
- *  - Change widgets show only: market, current value, absolute move and percent move.
- *    Date / "전일" / previous close are intentionally not shown.
- *  - Circuit-breaker / sidecar text is hidden during normal operation and appears only when alerted.
+ * Reference-driven rules:
+ *  - 1x1 mood = market / sentiment / score, vertically balanced and centered.
+ *  - 2x1 mood = market + sentiment on the left, score on the right, gauge below.
+ *  - change widgets = market / current index / percent only. No date, previous close or point move.
+ *  - 1x1 change removes decimals from the current index so long values never spill outside.
+ *  - all content stays well inside the rounded-corner safe area.
+ *  - sidecar / circuit-breaker text appears only when an actual alert exists.
  */
 public class WidgetRenderer {
     private static int C(String s){ return Color.parseColor(s); }
@@ -59,7 +60,7 @@ public class WidgetRenderer {
         return b;
     }
 
-    /** 1x1 mood. The content block is capped so resizing never makes typography explode. */
+    /** 1x1 mood: three visually centered rows with equal center-to-center spacing. */
     private static void drawMoodSmall(Canvas c, MarketSnapshot s, float w, float h,
                                       int fg, int green, int orange) {
         float bw = Math.min(w, 108f);
@@ -67,66 +68,81 @@ public class WidgetRenderer {
         float x0 = (w - bw) / 2f;
         float y0 = (h - bh) / 2f;
         float safeX = clamp(bw * .18f, 14f, 18f);
-        float safeY = clamp(bh * .12f, 12f, 16f);
+        float safeY = clamp(bh * .15f, 14f, 18f);
         float usableW = bw - safeX * 2f;
 
-        float title = fittedSize(s.name, 19f, 13f, usableW, true);
-        drawText(c, s.name, x0 + safeX, y0 + safeY + title, title, fg, true, Paint.Align.LEFT);
-
-        float sentimentY = y0 + bh * (hasAlert(s) ? .45f : .47f);
-        float sentiment = fittedSize(s.sentiment, 22f, 15f, usableW, true);
-        drawText(c, s.sentiment, w / 2f, sentimentY, sentiment, green, true, Paint.Align.CENTER);
-
         String scoreText = String.format(Locale.KOREA, "%.1f", s.score);
-        float score = fittedSize(scoreText, 29f, 20f, usableW, true);
-        drawText(c, scoreText, w / 2f, y0 + bh * (hasAlert(s) ? .68f : .73f),
-                score, fg, true, Paint.Align.CENTER);
+        float title = fittedSize(s.name, 18f, 12f, usableW, true);
+        float sentiment = fittedSize(s.sentiment, 20f, 13f, usableW, true);
+        float score = fittedSize(scoreText, 27f, 18f, usableW, true);
 
-        if (hasAlert(s)) {
-            float alert = fittedSize(s.alert, 11f, 8f, usableW, true);
-            drawText(c, s.alert, w / 2f, y0 + bh * .87f,
-                    alert, orange, true, Paint.Align.CENTER);
+        if (!hasAlert(s)) {
+            float top = y0 + safeY + title * .45f;
+            float bottom = y0 + bh - safeY - score * .38f;
+            float mid = (top + bottom) / 2f;
+            drawCenteredText(c, s.name, w/2f, top, title, fg, true);
+            drawCenteredText(c, s.sentiment, w/2f, mid, sentiment, green, true);
+            drawCenteredText(c, scoreText, w/2f, bottom, score, fg, true);
+        } else {
+            float top = y0 + safeY + title * .35f;
+            float bottom = y0 + bh - safeY - 4f;
+            float step = (bottom - top) / 3f;
+            drawCenteredText(c, s.name, w/2f, top, title, fg, true);
+            drawCenteredText(c, s.sentiment, w/2f, top + step, sentiment, green, true);
+            drawCenteredText(c, scoreText, w/2f, top + step*2f, score, fg, true);
+            float alert = fittedSize(s.alert, 10f, 7.5f, usableW, true);
+            drawCenteredText(c, s.alert, w/2f, bottom, alert, orange, true);
         }
     }
 
-    /** 2x1 mood. Same layout even when resized taller; only the block is vertically centered. */
+    /** 2x1 mood: follows the supplied reference closely and guarantees no text collision. */
     private static void drawMoodWide(Canvas c, MarketSnapshot s, float w, float h,
                                      boolean dark, int fg, int green, int orange) {
         float bw = Math.min(w, 280f);
         float bh = Math.min(h, 98f);
         float x0 = (w - bw) / 2f;
         float y0 = (h - bh) / 2f;
-        float safeX = clamp(bh * .18f, 15f, 19f);
-        float safeY = clamp(bh * .12f, 11f, 15f);
+        float safeX = clamp(bh * .19f, 16f, 20f);
+        float safeY = clamp(bh * .14f, 12f, 16f);
         float usableW = bw - safeX * 2f;
 
         String scoreText = String.format(Locale.KOREA, "%.1f", s.score);
-        float score = fittedSize(scoreText, 28f, 20f, usableW * .30f, true);
-        float title = fittedSize(s.name, 21f, 15f, usableW * .38f, true);
-        float sentiment = fittedSize(s.sentiment, 20f, 14f, usableW * .26f, true);
+        float score = fittedSize(scoreText, 26f, 15f, usableW * .30f, true);
+        float scoreW = measure(scoreText, score, true);
+        float gap = clamp(usableW * .055f, 5f, 10f);
+        float leftMax = Math.max(30f, usableW - scoreW - gap);
 
-        float topBase = y0 + safeY + Math.max(title, score);
-        drawText(c, s.name, x0 + safeX, topBase, title, fg, true, Paint.Align.LEFT);
+        float titlePref = clamp(bh * .20f, 15f, 20f);
+        float sentPref = clamp(bh * .19f, 14f, 19f);
+        float groupPrefW = measure(s.name, titlePref, true) + gap + measure(s.sentiment, sentPref, true);
+        float scale = groupPrefW > leftMax ? leftMax / groupPrefW : 1f;
+        float title = Math.max(9f, titlePref * scale);
+        float sentiment = Math.max(9f, sentPref * scale);
+
+        float topCenter = y0 + bh * (hasAlert(s) ? .27f : .31f);
+        float left = x0 + safeX;
+        drawTextCenteredY(c, s.name, left, topCenter, title, fg, true, Paint.Align.LEFT);
         float nameW = measure(s.name, title, true);
-        drawText(c, s.sentiment, x0 + safeX + nameW + 7f, topBase,
+        drawTextCenteredY(c, s.sentiment, left + nameW + gap, topCenter,
                 sentiment, green, true, Paint.Align.LEFT);
-        drawText(c, scoreText, x0 + bw - safeX, topBase,
+        drawTextCenteredY(c, scoreText, x0 + bw - safeX, topCenter,
                 score, fg, true, Paint.Align.RIGHT);
 
-        float barH = clamp(bh * .11f, 9f, 13f);
-        float barTop = y0 + bh * (hasAlert(s) ? .59f : .65f);
-        drawFearBar(c, x0 + safeX, barTop, x0 + bw - safeX, barTop + barH, s.score, dark);
+        float barH = clamp(bh * .105f, 8f, 12f);
+        float barCenter = y0 + bh * (hasAlert(s) ? .57f : .70f);
+        drawFearBar(c, x0 + safeX, barCenter - barH/2f,
+                x0 + bw - safeX, barCenter + barH/2f, s.score, dark);
 
         if (hasAlert(s)) {
-            float alert = fittedSize(s.alert, 13f, 9f, usableW, true);
-            drawText(c, s.alert, x0 + safeX, y0 + bh * .88f,
+            float alert = fittedSize(s.alert, 12f, 8.5f, usableW, true);
+            drawTextCenteredY(c, s.alert, x0 + safeX, y0 + bh*.83f,
                     alert, orange, true, Paint.Align.LEFT);
         }
     }
 
     /**
-     * 1x1 change: intentionally minimal.
-     * market / current value / absolute move + percent move.
+     * 1x1 change: exactly three rows. The row centers are equally spaced.
+     * Long index decimals are intentionally discarded in this compact size.
      */
     private static void drawChangeSmall(Canvas c, MarketSnapshot s, float w, float h,
                                         int fg, int muted, int red, int blue, int orange) {
@@ -134,62 +150,70 @@ public class WidgetRenderer {
         float bh = Math.min(h, 118f);
         float x0 = (w - bw) / 2f;
         float y0 = (h - bh) / 2f;
-        float safeX = clamp(bw * .18f, 14f, 18f);
-        float safeY = clamp(bh * .12f, 12f, 16f);
+        float safeX = clamp(bw * .19f, 15f, 19f);
+        float safeY = clamp(bh * .16f, 15f, 19f);
         float usableW = bw - safeX * 2f;
         int dirColor = s.changePct > 0 ? red : s.changePct < 0 ? blue : muted;
 
-        float title = fittedSize(s.name, 19f, 13f, usableW, true);
-        drawText(c, s.name, x0 + safeX, y0 + safeY + title,
-                title, fg, true, Paint.Align.LEFT);
+        String valueText = formatWholeValue(s.value);
+        String pctText = signedPercent(s.changePct);
+        float title = fittedSize(s.name, 18f, 12f, usableW, true);
+        float value = fittedSize(valueText, 23f, 14f, usableW, true);
+        float pct = fittedSize(pctText, 14f, 10f, usableW, true);
 
-        String valueText = formatValue(s.value);
-        float value = fittedSize(valueText, 25f, 13f, usableW, true);
-        drawText(c, valueText, w / 2f, y0 + bh * .52f,
-                value, fg, true, Paint.Align.CENTER);
-
-        String moveText = signedChange(s.change) + "  " + signedPercent(s.changePct);
-        float move = fittedSize(moveText, 14.5f, 9f, usableW, true);
-        drawText(c, moveText, w / 2f, y0 + bh * (hasAlert(s) ? .70f : .75f),
-                move, dirColor, true, Paint.Align.CENTER);
-
-        if (hasAlert(s)) {
-            float alert = fittedSize(s.alert, 10.5f, 8f, usableW, true);
-            drawText(c, s.alert, w / 2f, y0 + bh * .87f,
-                    alert, orange, true, Paint.Align.CENTER);
+        if (!hasAlert(s)) {
+            float top = y0 + safeY + title*.35f;
+            float bottom = y0 + bh - safeY - pct*.25f;
+            float mid = (top + bottom) / 2f;
+            drawCenteredText(c, s.name, w/2f, top, title, fg, true);
+            drawCenteredText(c, valueText, w/2f, mid, value, fg, true);
+            drawCenteredText(c, pctText, w/2f, bottom, pct, dirColor, true);
+        } else {
+            float top = y0 + safeY + title*.25f;
+            float bottom = y0 + bh - safeY - 2f;
+            float step = (bottom - top) / 3f;
+            drawCenteredText(c, s.name, w/2f, top, title, fg, true);
+            drawCenteredText(c, valueText, w/2f, top+step, value, fg, true);
+            drawCenteredText(c, pctText, w/2f, top+step*2f, pct, dirColor, true);
+            float alert = fittedSize(s.alert, 9.5f, 7f, usableW, true);
+            drawCenteredText(c, s.alert, w/2f, bottom, alert, orange, true);
         }
     }
 
-    /** 2x1 change: same information hierarchy as 1x1, with larger text and more breathing room. */
+    /** 2x1 change: same three-row rhythm; decimals are retained because this size has room. */
     private static void drawChangeWide(Canvas c, MarketSnapshot s, float w, float h,
                                        int fg, int muted, int red, int blue, int orange) {
         float bw = Math.min(w, 280f);
         float bh = Math.min(h, 98f);
         float x0 = (w - bw) / 2f;
         float y0 = (h - bh) / 2f;
-        float safeX = clamp(bh * .18f, 15f, 19f);
-        float safeY = clamp(bh * .12f, 11f, 15f);
+        float safeX = clamp(bh * .19f, 16f, 20f);
+        float safeY = clamp(bh * .15f, 13f, 17f);
         float usableW = bw - safeX * 2f;
         int dirColor = s.changePct > 0 ? red : s.changePct < 0 ? blue : muted;
 
-        float title = fittedSize(s.name, 21f, 15f, usableW, true);
-        drawText(c, s.name, x0 + safeX, y0 + safeY + title,
-                title, fg, true, Paint.Align.LEFT);
-
         String valueText = formatValue(s.value);
-        float value = fittedSize(valueText, 31f, 20f, usableW, true);
-        drawText(c, valueText, w / 2f, y0 + bh * .57f,
-                value, fg, true, Paint.Align.CENTER);
+        String pctText = signedPercent(s.changePct);
+        float title = fittedSize(s.name, 19f, 13f, usableW, true);
+        float value = fittedSize(valueText, 27f, 18f, usableW, true);
+        float pct = fittedSize(pctText, 15f, 10.5f, usableW, true);
 
-        String moveText = signedChange(s.change) + "  " + signedPercent(s.changePct);
-        float move = fittedSize(moveText, 18f, 12f, usableW, true);
-        drawText(c, moveText, w / 2f, y0 + bh * (hasAlert(s) ? .75f : .82f),
-                move, dirColor, true, Paint.Align.CENTER);
-
-        if (hasAlert(s)) {
-            float alert = fittedSize(s.alert, 12f, 9f, usableW, true);
-            drawText(c, s.alert, w / 2f, y0 + bh * .90f,
-                    alert, orange, true, Paint.Align.CENTER);
+        if (!hasAlert(s)) {
+            float top = y0 + safeY + title*.25f;
+            float bottom = y0 + bh - safeY - pct*.15f;
+            float mid = (top + bottom) / 2f;
+            drawCenteredText(c, s.name, w/2f, top, title, fg, true);
+            drawCenteredText(c, valueText, w/2f, mid, value, fg, true);
+            drawCenteredText(c, pctText, w/2f, bottom, pct, dirColor, true);
+        } else {
+            float top = y0 + safeY;
+            float bottom = y0 + bh - safeY;
+            float step = (bottom - top) / 3f;
+            drawCenteredText(c, s.name, w/2f, top, title, fg, true);
+            drawCenteredText(c, valueText, w/2f, top+step, value, fg, true);
+            drawCenteredText(c, pctText, w/2f, top+step*2f, pct, dirColor, true);
+            float alert = fittedSize(s.alert, 11f, 8f, usableW, true);
+            drawCenteredText(c, s.alert, w/2f, bottom, alert, orange, true);
         }
     }
 
@@ -211,27 +235,41 @@ public class WidgetRenderer {
     private static boolean hasAlert(MarketSnapshot s){
         return s != null && s.alert != null && !s.alert.trim().isEmpty();
     }
+
     private static String formatValue(double v){
         return String.format(Locale.KOREA, Math.abs(v) >= 1000 ? "%,.2f" : "%.2f", v);
     }
-    private static String signedChange(double v){
-        if(v>0) return "+"+formatValue(v);
-        if(v<0) return formatValue(v);
-        return "0.00";
+
+    private static String formatWholeValue(double v){
+        return String.format(Locale.KOREA, "%,.0f", v);
     }
+
     private static String signedPercent(double v){
         if(v>0) return "+"+String.format(Locale.KOREA,"%.2f%%",v);
         if(v<0) return String.format(Locale.KOREA,"%.2f%%",v);
         return "0.00%";
     }
 
-    private static void drawText(Canvas c,String text,float x,float y,float size,int color,boolean bold,Paint.Align align){
+    private static void drawCenteredText(Canvas c,String text,float cx,float cy,float size,
+                                         int color,boolean bold){
+        drawTextCenteredY(c, text, cx, cy, size, color, bold, Paint.Align.CENTER);
+    }
+
+    private static void drawTextCenteredY(Canvas c,String text,float x,float cy,float size,
+                                          int color,boolean bold,Paint.Align align){
+        Paint p = makePaint(size, color, bold, align);
+        Paint.FontMetrics fm = p.getFontMetrics();
+        float baseline = cy - (fm.ascent + fm.descent) / 2f;
+        c.drawText(text==null?"":text, x, baseline, p);
+    }
+
+    private static Paint makePaint(float size,int color,boolean bold,Paint.Align align){
         Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
         p.setColor(color);
         p.setTextSize(size);
         p.setTextAlign(align);
         p.setTypeface(Typeface.create("sans",bold?Typeface.BOLD:Typeface.NORMAL));
-        c.drawText(text==null?"":text,x,y,p);
+        return p;
     }
 
     private static float fittedSize(String text, float preferred, float minimum,
