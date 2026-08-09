@@ -29,8 +29,13 @@ public class MainActivity extends Activity {
     public class Bridge {
         @JavascriptInterface public void refresh(){
             MarketUpdater.refreshAsync(MainActivity.this,()->web.post(()->sendCached()));
+            fetchFundsAsync();
         }
-        @JavascriptInterface public void requestDashboard(){ sendCached(); MarketUpdater.refreshAsync(MainActivity.this,()->web.post(()->sendCached())); }
+        @JavascriptInterface public void requestDashboard(){
+            sendCached();
+            MarketUpdater.refreshAsync(MainActivity.this,()->web.post(()->sendCached()));
+            fetchFundsAsync();
+        }
         @JavascriptInterface public void requestDate(String date){
             exec.execute(()->{
                 JSONObject out=new JSONObject();
@@ -42,6 +47,16 @@ public class MainActivity extends Activity {
                 String json=out.toString();web.post(()->web.evaluateJavascript("window.onDateData("+JSONObject.quote(json)+")",null));
             });
         }
+    }
+
+    private void fetchFundsAsync(){
+        exec.execute(()->{
+            try{
+                JSONObject funds=MarketFundsFetcher.fetch();
+                String json=funds.toString();
+                web.post(()->web.evaluateJavascript("window.onFundsData("+JSONObject.quote(json)+")",null));
+            }catch(Exception ignored){}
+        });
     }
 
     private void sendCached(){
