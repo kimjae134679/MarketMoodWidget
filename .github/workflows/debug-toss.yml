@@ -11,24 +11,11 @@ jobs:
   debug:
     runs-on: ubuntu-latest
     steps:
-      - name: Inspect indicator endpoints
+      - name: Probe Toss index APIs
         shell: bash
         run: |
-          set -u
           UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36'
           BASE='https://www.tossinvest.com'
-          for src in \
-            '/assets/v2/_next/static/chunks/pages/index-7472de401bd91453.js' \
-            '/assets/v2/_next/static/chunks/8980-7df6f46d247f714f.js' \
-            '/assets/v2/_next/static/chunks/6061-1ec6b81752d0bca5.js'; do
-            echo "===== $src ====="
-            curl -fsSL --compressed --max-time 20 -A "$UA" "$BASE$src" -o chunk.js || continue
-            for key in '/api/v4/dashboard/wts/overview/indicator' '/api/v1/dashboard/wts/overview/indicator/' '/api/v1/index-prices/' '/api/v2/index-infos/' '/api/v2/dashboard/wts/overview/tics/'; do
-              echo "--- $key ---"
-              grep -aoE ".{0,1800}${key//\//\\/}.{0,2600}" chunk.js 2>/dev/null | head -n 6 || true
-            done
-          done
-          echo '===== DIRECT ENDPOINT PROBES ====='
           for u in \
             "$BASE/api/v4/dashboard/wts/overview/indicator" \
             "$BASE/api/v1/dashboard/wts/overview/indicator/KOSPI" \
@@ -37,8 +24,10 @@ jobs:
             "$BASE/api/v1/index-prices/KGG01P" \
             "$BASE/api/v1/index-prices/COMP.NAI" \
             "$BASE/api/v2/index-infos/KGG01P" \
-            "$BASE/api/v2/index-infos/COMP.NAI"; do
-            echo "### $u"
-            curl -sS --compressed --max-time 15 -A "$UA" -H 'Accept: application/json' -w '\nHTTP=%{http_code}\n' "$u" | head -c 5000
+            "$BASE/api/v2/index-infos/COMP.NAI" \
+            "$BASE/api/v2/dashboard/wts/overview/tics/KGG01P" \
+            "$BASE/api/v2/dashboard/wts/overview/tics/COMP.NAI"; do
+            echo "===== $u ====="
+            curl -sSL --compressed --connect-timeout 3 --max-time 6 -A "$UA" -H 'Accept: application/json' -H 'Referer: https://www.tossinvest.com/' -w '\nHTTP=%{http_code}\n' "$u" | head -c 6000 || true
             echo
           done
