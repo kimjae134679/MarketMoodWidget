@@ -14,44 +14,49 @@ public class MarketUpdater {
 
     public static void refreshAsync(Context context, Runnable done) {
         Context app = context.getApplicationContext();
+
+        // Historical closes are prepared off the UI thread because they are used
+        // only for fear/greed history and the weekly chart.
         EXEC.execute(() -> {
-            MarketSnapshot kospi;
-            MarketSnapshot kosdaq;
-            MarketSnapshot nasdaq;
+            final MarketSnapshot kospi = fetchHistory(app, "^KS11", "코스피");
+            final MarketSnapshot kosdaq = fetchHistory(app, "^KQ11", "코스닥");
+            final MarketSnapshot nasdaq = fetchHistory(app, "^IXIC", "나스닥");
 
-            // Yahoo history is retained only for fear/greed calculation and weekly history.
-            // Current displayed index + rate must come from Toss whenever Toss has ever succeeded.
-            try { kospi = MarketRepository.fetch("^KS11", "코스피"); }
-            catch (Exception e) { kospi = MarketRepository.load(app,"^KS11","코스피"); }
-            try { kosdaq = MarketRepository.fetch("^KQ11", "코스닥"); }
-            catch (Exception e) { kosdaq = MarketRepository.load(app,"^KQ11","코스닥"); }
-            try { nasdaq = MarketRepository.fetch("^IXIC", "나스닥"); }
-            catch (Exception e) { nasdaq = MarketRepository.load(app,"^IXIC","나스닥"); }
+            // The actual number/rate displayed to the user is read from Toss'
+            // JavaScript-rendered ticker. Raw HTML does not contain those values.
+            TossWebViewFetcher.fetch(app, fresh -> EXEC.execute(() -> {
+                if (fresh != null && fresh.length() > 0) {
+                    TossMarketFetcher.saveFresh(app, fresh);
+                }
 
-            JSONObject fresh = null;
-            try { fresh = TossMarketFetcher.fetchQuotes(app); }
-            catch (Exception ignored) {}
+                // If a market is missing for a moment, only a previous Toss value
+                // may fill it. Never substitute Yahoo and present it as Toss.
+                JSONObject toss = TossMarketFetcher.mergeWithCache(app, fresh);
+                TossMarketFetcher.apply(kospi, toss.optJSONObject("kospi"));
+                TossMarketFetcher.apply(kosdaq, toss.optJSONObject("kosdaq"));
+                TossMarketFetcher.apply(nasdaq, toss.optJSONObject("nasdaq"));
 
-            // Missing fresh markets are filled only from the last successful Toss cache.
-            // This prevents a temporary WTS parsing/network failure from silently replacing
-            // Toss values with Yahoo values, which caused the wrong numbers in v1.7.
-            JSONObject toss = TossMarketFetcher.mergeWithCache(app, fresh);
-            TossMarketFetcher.apply(kospi, toss.optJSONObject("kospi"));
-            TossMarketFetcher.apply(kosdaq, toss.optJSONObject("kosdaq"));
-            TossMarketFetcher.apply(nasdaq, toss.optJSONObject("nasdaq"));
+                kospi.alert = KrxAlertFetcher.fetchKospiAlert();
+                MarketRepository.save(app, kospi);
+                MarketRepository.save(app, kosdaq);
+                MarketRepository.save(app, nasdaq);
 
-            kospi.alert = KrxAlertFetcher.fetchKospiAlert();
-            MarketRepository.save(app, kospi);
-            MarketRepository.save(app, kosdaq);
-            MarketRepository.save(app, nasdaq);
+                try {
+                    AppWidgetManager manager = AppWidgetManager.getInstance(app);
+                    FixedWidgetProviders.refreshAllWidgets(app, manager);
+                    int[] legacy = manager.getAppWidgetIds(new ComponentName(app, MarketWidgetProvider.class));
+                    MarketWidgetProvider.updateWidgets(app, manager, legacy);
+                } catch (Exception ignored) {}
 
-            try {
-                AppWidgetManager manager=AppWidgetManager.getInstance(app);
-                FixedWidgetProviders.refreshAllWidgets(app, manager);
-                int[] legacy=manager.getAppWidgetIds(new ComponentName(app,MarketWidgetProvider.class));
-                MarketWidgetProvider.updateWidgets(app, manager, legacy);
-            } catch (Exception ignored) {}
-            if(done!=null) done.run();
+                if (done != null) {
+                    try { done.run(); } catch (Exception ignored) {}
+                }
+            }));
         });
+    }
+
+    private static MarketSnapshot fetchHistory(Context app, String symbol, String name) {
+        try { return MarketRepository.fetch(symbol, name); }
+        catch (Exception e) { return MarketRepository.load(app, symbol, name); }
     }
 }
