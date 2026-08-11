@@ -14,7 +14,7 @@ jobs:
       - name: Fetch Toss pages
         shell: bash
         run: |
-          set -euxo pipefail
+          set -u
           UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36'
           for u in \
             'https://www.tossinvest.com/' \
@@ -22,35 +22,10 @@ jobs:
             'https://www.tossinvest.com/?contentParams=%7B%22id%22%3A803%7D&contentType=tics' \
             'https://www.tossinvest.com/stocks/US20210301016'; do
             echo "===== $u ====="
-            curl -L --compressed --max-time 25 -A "$UA" -H 'Accept-Language: ko-KR,ko;q=0.9' "$u" -o toss.html
-            echo "bytes=$(wc -c < toss.html)"
-            python3 - <<'PY'
-from pathlib import Path
-import re, html
-s=Path('toss.html').read_text(errors='ignore')
-# decode a little so labels inside hydration payloads are visible
-s=html.unescape(s)
-s=re.sub(r'\\u([0-9a-fA-F]{4})', lambda m: chr(int(m.group(1),16)), s)
-s=s.replace('\\"','"').replace('\\n',' ')
-for key in ['코스피','코스닥','나스닥','KOSPI','KOSDAQ','NASDAQ']:
-    print('\n--',key,'--')
-    count=0
-    for m in re.finditer(re.escape(key), s, re.I):
-        a=max(0,m.start()-180); b=min(len(s),m.start()+900)
-        print(re.sub(r'\s+',' ',s[a:b]))
-        count+=1
-        if count>=8: break
-print('\n-- URL-ish candidates --')
-urls=sorted(set(re.findall(r'https?[^"\' <>]{0,220}', s)))
-for x in urls:
-    low=x.lower()
-    if any(k in low for k in ['api','market','index','price','quote','ticker']): print(x[:300])
-print('\n-- endpoint-ish strings --')
-for pat in [r'/api/[^"\' ]+', r'[^"\']*(?:market|index|ticker|quote|price)[^"\']*']:
-    vals=[]
-    for x in re.findall(pat,s,re.I):
-        if len(x)<400 and x not in vals: vals.append(x)
-        if len(vals)>=80: break
-    for x in vals: print(x[:400])
-PY
+            curl -fsSL --compressed --max-time 25 -A "$UA" -H 'Accept-Language: ko-KR,ko;q=0.9' "$u" -o toss.html || true
+            echo "bytes=$(wc -c < toss.html 2>/dev/null || echo 0)"
+            echo '--- MARKET CONTEXT ---'
+            grep -aoE '.{0,180}(코스피|코스닥|나스닥|KOSPI|KOSDAQ|NASDAQ).{0,850}' toss.html 2>/dev/null | head -n 120 || true
+            echo '--- API/ENDPOINT CANDIDATES ---'
+            grep -aoE 'https?[^"<> ]+|/api/[^"<> ]+' toss.html 2>/dev/null | grep -Ei 'api|market|index|price|quote|ticker|stock' | head -n 150 || true
           done
