@@ -11,21 +11,34 @@ jobs:
   debug:
     runs-on: ubuntu-latest
     steps:
-      - name: Fetch Toss pages
+      - name: Inspect Toss WTS
         shell: bash
         run: |
           set -u
           UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36'
-          for u in \
-            'https://www.tossinvest.com/' \
-            'https://www.tossinvest.com/?contentType=tics' \
-            'https://www.tossinvest.com/?contentParams=%7B%22id%22%3A803%7D&contentType=tics' \
-            'https://www.tossinvest.com/stocks/US20210301016'; do
-            echo "===== $u ====="
-            curl -fsSL --compressed --max-time 25 -A "$UA" -H 'Accept-Language: ko-KR,ko;q=0.9' "$u" -o toss.html || true
-            echo "bytes=$(wc -c < toss.html 2>/dev/null || echo 0)"
-            echo '--- MARKET CONTEXT ---'
-            grep -aoE '.{0,180}(코스피|코스닥|나스닥|KOSPI|KOSDAQ|NASDAQ).{0,850}' toss.html 2>/dev/null | head -n 120 || true
-            echo '--- API/ENDPOINT CANDIDATES ---'
-            grep -aoE 'https?[^"<> ]+|/api/[^"<> ]+' toss.html 2>/dev/null | grep -Ei 'api|market|index|price|quote|ticker|stock' | head -n 150 || true
-          done
+          URL='https://www.tossinvest.com/?contentParams=%7B%22id%22%3A803%7D&contentType=tics'
+          curl -fsSL --compressed --max-time 25 -A "$UA" -H 'Accept-Language: ko-KR,ko;q=0.9' "$URL" -o toss.html
+          echo "HTML bytes=$(wc -c < toss.html)"
+          echo '--- SCRIPT SRCS ---'
+          grep -oP '<script[^>]+src=["'"']\K[^"'"']+' toss.html | head -n 80 | tee scripts.txt || true
+          echo '--- RENDERED DOM ---'
+          CHROME=$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)
+          if [ -n "$CHROME" ]; then
+            "$CHROME" --headless=new --no-sandbox --disable-gpu --virtual-time-budget=12000 --dump-dom "$URL" > rendered.html 2>/dev/null || true
+            echo "rendered bytes=$(wc -c < rendered.html 2>/dev/null || echo 0)"
+            grep -aoE '.{0,160}(코스피|코스닥|나스닥|KOSPI|KOSDAQ|NASDAQ).{0,700}' rendered.html 2>/dev/null | head -n 120 || true
+          else
+            echo 'chrome not found'
+          fi
+          echo '--- JS ENDPOINT CANDIDATES ---'
+          while IFS= read -r src; do
+            case "$src" in
+              http*) js="$src" ;;
+              //*) js="https:$src" ;;
+              /*) js="https://www.tossinvest.com$src" ;;
+              *) js="https://www.tossinvest.com/$src" ;;
+            esac
+            echo "### $js"
+            curl -fsSL --compressed --max-time 20 -A "$UA" "$js" -o chunk.js || continue
+            grep -aoE 'https?[^"'"'<> ]{1,260}|/[A-Za-z0-9_?=&./:{}-]{1,260}' chunk.js 2>/dev/null | grep -Ei 'api|market|index|indices|ticker|quote|price|discover|tics' | head -n 60 || true
+          done < scripts.txt
