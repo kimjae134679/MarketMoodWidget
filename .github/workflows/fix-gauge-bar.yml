@@ -1,0 +1,88 @@
+name: Fix Gauge Bar
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - '.github/workflows/fix-gauge-bar.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Fix gauge geometry and bump version
+        shell: python
+        run: |
+          from pathlib import Path
+
+          p = Path('app/src/main/java/com/marketmood/widget/WidgetRenderer.java')
+          s = p.read_text(encoding='utf-8')
+          old = '''    private static void drawFearBar(Canvas c,float l,float t,float r,float b,double score,boolean dark){
+        Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
+        float w=(r-l)/5f;
+        int[] cols={C("#D92D2D"),C("#FF8D0A"),C("#FFC43A"),C("#85BF45"),C("#2C8C3A")};
+        for(int i=0;i<5;i++){
+            p.setColor(cols[i]);
+            RectF rr=new RectF(l+i*w,t,l+(i+1)*w,b);
+            if(i==0 || i==4) c.drawRoundRect(rr,(b-t)/2f,(b-t)/2f,p); else c.drawRect(rr,p);
+        }
+        float x=l+(float)(Math.max(0,Math.min(100,score))/100.0)*(r-l);
+        p.setColor(dark?Color.WHITE:C("#171717"));
+        p.setStrokeWidth(Math.max(2.2f,(b-t)*.16f));
+        c.drawLine(x,t-(b-t)*.55f,x,b+(b-t)*.55f,p);
+    }
+'''
+          new = '''    private static void drawFearBar(Canvas c,float l,float t,float r,float b,double score,boolean dark){
+        Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
+        float segment=(r-l)/5f;
+        float radius=(b-t)/2f;
+        int[] cols={C("#D92D2D"),C("#FF8D0A"),C("#FFC43A"),C("#85BF45"),C("#2C8C3A")};
+
+        // Clip the WHOLE gauge to one rounded capsule. Previously the first and
+        // last 20% blocks were rounded independently, which visually shortened
+        // those blocks and made the 0/20/40/60/80/100 positions look misaligned.
+        int save=c.save();
+        android.graphics.Path clip=new android.graphics.Path();
+        clip.addRoundRect(new RectF(l,t,r,b),radius,radius,android.graphics.Path.Direction.CW);
+        c.clipPath(clip);
+        for(int i=0;i<5;i++){
+            p.setColor(cols[i]);
+            float left=l+i*segment;
+            float right=(i==4)?r:l+(i+1)*segment;
+            c.drawRect(left,t,right,b,p);
+        }
+        c.restoreToCount(save);
+
+        // Marker is positioned linearly on the exact 0-100 scale.
+        float normalized=(float)(Math.max(0,Math.min(100,score))/100.0);
+        float x=l+normalized*(r-l);
+        p.setColor(dark?Color.WHITE:C("#171717"));
+        p.setStrokeCap(Paint.Cap.SQUARE);
+        p.setStrokeWidth(Math.max(1.8f,(b-t)*.13f));
+        c.drawLine(x,t-(b-t)*.58f,x,b+(b-t)*.58f,p);
+    }
+'''
+          if old not in s:
+              raise SystemExit('target drawFearBar block not found')
+          p.write_text(s.replace(old, new), encoding='utf-8')
+
+          g = Path('app/build.gradle')
+          gs = g.read_text(encoding='utf-8')
+          gs = gs.replace("versionCode 10\n        versionName '1.9.0'", "versionCode 11\n        versionName '1.9.1'")
+          g.write_text(gs, encoding='utf-8')
+
+      - name: Commit fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/src/main/java/com/marketmood/widget/WidgetRenderer.java app/build.gradle
+          git commit -m "Fix mood gauge segment alignment"
+          git push
